@@ -45,7 +45,9 @@ function Pedidos() {
     const pedidosRef = collection(db, 'pedidos');
     const unsub = onSnapshot(pedidosRef, (snapshot) => {
       const lista = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setPedidos(lista);
+      // Filtrar apenas pedidos com algum ID em ids_pecas
+      const ativos = lista.filter(p => p.itens && p.itens.some(item => item.ids_pecas && item.ids_pecas.length > 0));
+      setPedidos(ativos);
       setLoading(false);
     });
     return () => unsub();
@@ -86,7 +88,7 @@ function Pedidos() {
             const status = calcularStatus(pedido);
             const dias = diasRestantes(pedido);
             return (
-              <Grid item key={pedido.id} xs={12} sm={6} md={4} lg={3} display="flex" justifyContent="center">
+              <Grid sx={{ gridColumn: { xs: 'span 12', sm: 'span 6', md: 'span 4', lg: 'span 3' }, display: 'flex', justifyContent: 'center' }} key={pedido.id}>
                 <Card
                   className="glass-neon"
                   sx={{
@@ -168,7 +170,8 @@ function Pedidos() {
                   <Box key={idx} mb={2} p={2} border={1} borderColor={theme.palette.divider} borderRadius={2} bgcolor={theme.palette.background.default}>
                     <Typography><b>Modelo:</b> {item.modelo}</Typography>
                     <Typography><b>Quantidade:</b> {item.quantidade}</Typography>
-                    <Typography><b>IDs das Peças:</b> {item.ids_pecas && item.ids_pecas.join(', ')}</Typography>
+                    <Typography><b>IDs emprestados:</b> {item.ids_pecas && item.ids_pecas.length > 0 ? item.ids_pecas.join(', ') : 'Nenhum'}</Typography>
+                    <Typography color="success.main"><b>IDs devolvidos:</b> {item.ids_devolvidos && item.ids_devolvidos.length > 0 ? item.ids_devolvidos.join(', ') : 'Nenhum'}</Typography>
                   </Box>
                 ))}
               </Box>

@@ -22,6 +22,7 @@ import {
   AddCircle as AddCircleIcon,
   AssignmentReturn as AssignmentReturnIcon,
   Search as SearchIcon,
+  AssignmentTurnedIn as AssignmentTurnedInIcon,
 } from '@mui/icons-material';
 import logo from '../assets/logo.png'
 
@@ -34,6 +35,7 @@ const menuItems = [
   { text: 'Novo Pedido', icon: <AddCircleIcon />, path: '/novo-pedido' },
   { text: 'Devolução', icon: <AssignmentReturnIcon />, path: '/devolucao' },
   { text: 'Pesquisa', icon: <SearchIcon />, path: '/pesquisa' },
+  { text: 'Histórico', icon: <AssignmentTurnedInIcon />, path: '/historico' },
 ];
 
 function Layout({ children }) {

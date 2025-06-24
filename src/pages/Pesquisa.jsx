@@ -108,7 +108,7 @@ function Pesquisa() {
       ) : (
         <Grid container spacing={3} justifyContent="center">
           {resultados.map((pedido) => (
-            <Grid item key={pedido.id} xs={12} sm={6} md={4} lg={3} display="flex" justifyContent="center">
+            <Grid sx={{ gridColumn: { xs: 'span 12', sm: 'span 6', md: 'span 4', lg: 'span 3' }, display: 'flex', justifyContent: 'center' }} key={pedido.id}>
               <Card className="glass-neon" sx={{ borderRadius: 4, p: 2, minHeight: 180, display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: 8, transition: 'box-shadow 0.3s, background 0.3s', background: 'rgba(40,43,69,0.6)', color: '#fff', '&:hover': { boxShadow: 16, background: 'rgba(40,43,69,0.8)' } }}>
                 <CardActionArea onClick={() => setPedidoSelecionado(pedido)} sx={{ borderRadius: 4 }}>
                   <CardContent sx={{ width: '100%', textAlign: 'center' }}>
@@ -130,7 +130,7 @@ function Pesquisa() {
             </Grid>
           ))}
           {resultados.length === 0 && (
-            <Grid item xs={12}>
+            <Grid sx={{ gridColumn: 'span 12' }}>
               <Typography>Nenhum pedido encontrado.</Typography>
             </Grid>
           )}

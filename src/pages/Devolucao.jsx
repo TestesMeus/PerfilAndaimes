@@ -49,11 +49,16 @@ function Devolucao() {
       for (const id of idsDevolver) {
         await updateDoc(doc(db, 'pecas', id), { status: 'disponivel' });
       }
-      // Remove os IDs devolvidos do pedido
-      const novosItens = pedidoSelecionado.itens.map(item => ({
-        ...item,
-        ids_pecas: item.ids_pecas.filter(id => !idsDevolver.includes(id))
-      }));
+      // Move os IDs devolvidos de ids_pecas para ids_devolvidos
+      const novosItens = pedidoSelecionado.itens.map(item => {
+        const devolvidos = item.ids_devolvidos || [];
+        const idsParaDevolver = item.ids_pecas ? item.ids_pecas.filter(id => idsDevolver.includes(id)) : [];
+        return {
+          ...item,
+          ids_pecas: item.ids_pecas ? item.ids_pecas.filter(id => !idsDevolver.includes(id)) : [],
+          ids_devolvidos: [...devolvidos, ...idsParaDevolver],
+        };
+      });
       await updateDoc(doc(db, 'pedidos', pedidoSelecionado.id), { itens: novosItens });
       setMsg('Devolução realizada com sucesso!');
       setPedidoSelecionado(null);
@@ -93,10 +98,14 @@ function Devolucao() {
     try {
       // Atualiza status da peça
       await updateDoc(doc(db, 'pecas', idUnidade), { status: 'disponivel' });
-      // Remove o ID do pedido
+      // Move o ID de ids_pecas para ids_devolvidos
       const novosItens = infoUnidade.pedido.itens.map(item =>
         item === infoUnidade.item
-          ? { ...item, ids_pecas: item.ids_pecas.filter(id => id !== idUnidade) }
+          ? {
+              ...item,
+              ids_pecas: item.ids_pecas.filter(id => id !== idUnidade),
+              ids_devolvidos: [...(item.ids_devolvidos || []), idUnidade],
+            }
           : item
       );
       await updateDoc(doc(db, 'pedidos', infoUnidade.pedido.id), { itens: novosItens });
@@ -123,7 +132,7 @@ function Devolucao() {
         ) : (
           <Grid container spacing={2} justifyContent="center">
             {pedidos.map(pedido => (
-              <Grid item xs={12} sm={6} md={4} display="flex" justifyContent="center" key={pedido.id}>
+              <Grid sx={{ gridColumn: { xs: 'span 12', sm: 'span 6', md: 'span 4' }, display: 'flex', justifyContent: 'center' }} key={pedido.id}>
                 <Card className="glass-neon" sx={{ borderRadius: 4, p: 2, minHeight: 140, display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: 8, transition: 'box-shadow 0.3s, background 0.3s', background: 'rgba(40,43,69,0.6)', color: '#fff', '&:hover': { boxShadow: 16, background: 'rgba(40,43,69,0.8)' } }}>
                   <CardActionArea onClick={() => { setPedidoSelecionado(pedido); setIdsDevolver([]); }} sx={{ borderRadius: 4 }}>
                     <CardContent sx={{ width: '100%', textAlign: 'center' }}>

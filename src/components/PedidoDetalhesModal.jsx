@@ -30,6 +30,9 @@ function PedidoDetalhesModal({ pedido, open, onClose, children, onConfirm, confi
                   <Typography><b>Modelo:</b> {item.modelo}</Typography>
                   <Typography><b>Quantidade:</b> {item.quantidade}</Typography>
                   <Typography><b>IDs das Peças:</b> {item.ids_pecas && item.ids_pecas.join(', ')}</Typography>
+                  {item.ids_devolvidos && item.ids_devolvidos.length > 0 && (
+                    <Typography color="success.main"><b>IDs devolvidos:</b> {item.ids_devolvidos.join(', ')}</Typography>
+                  )}
                 </Box>
               ))}
             </Box>

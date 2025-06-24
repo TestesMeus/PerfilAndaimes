@@ -9,6 +9,7 @@ import Pedidos from './pages/Pedidos';
 import NovoPedido from './pages/NovoPedido';
 import Devolucao from './pages/Devolucao';
 import Pesquisa from './pages/Pesquisa';
+import Historico from './pages/Historico';
 
 function App() {
   const [darkMode, setDarkMode] = useState(true);
@@ -37,6 +38,7 @@ function App() {
             <Route path="/novo-pedido" element={<NovoPedido />} />
             <Route path="/devolucao" element={<Devolucao />} />
             <Route path="/pesquisa" element={<Pesquisa />} />
+            <Route path="/historico" element={<Historico />} />
           </Routes>
         </Layout>
       </Router>

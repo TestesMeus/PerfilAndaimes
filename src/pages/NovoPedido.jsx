@@ -75,7 +75,7 @@ function NovoPedido() {
     novosItens[idx].idsDigitados = valor;
     const modeloNorm = novosItens[idx].modelo;
     const quantidade = novosItens[idx].quantidade;
-    const ids = valor.split(/[,\s]+/).filter(Boolean).map(id => id.toString());
+    const ids = valor.split(/[,s]+/).filter(Boolean).map(id => id.toString());
     let erro = '';
     let idsValidos = [];
     if (ids.length > 0) {
@@ -84,14 +84,9 @@ function NovoPedido() {
       } else {
         const pecasDoModelo = pecasPorModelo[modeloNorm] || [];
         const idsDoModelo = new Set(pecasDoModelo.map(p => p.id.toString()));
-        const disponiveis = pecasDisponiveis[modeloNorm] || {};
         for (const id of ids) {
           if (!idsDoModelo.has(id)) {
             erro = `ID ${id} não pertence ao modelo selecionado.`;
-            break;
-          }
-          if (!disponiveis[id]) {
-            erro = `ID ${id} não está disponível.`;
             break;
           }
         }
@@ -126,51 +121,111 @@ function NovoPedido() {
           throw new Error('Preencha corretamente todos os campos e IDs dos itens do pedido.');
         }
       }
-      // NOVA LÓGICA: Remover IDs de pedidos anteriores
+      // NOVA LÓGICA: Para cada ID, só o pedido mais recente (data_retirada, depois data_pedido) fica com o ID ativo
       const pedidosRef = collection(db, 'pedidos');
       const pedidosSnap = await getDocs(pedidosRef);
       const pedidos = pedidosSnap.docs.map(docu => ({ id: docu.id, ...docu.data() }));
       const batch = writeBatch(db);
       const todosIds = itens.flatMap(item => item.idsValidados);
+      const dataRetiradaAtual = new Date(dataRetirada);
+      const dataPedidoAtual = new Date();
+      let idsQueDevemNascerDevolvidos = new Set();
       for (const id of todosIds) {
-        for (const pedido of pedidos) {
-          if (!pedido.itens) continue;
-          let alterou = false;
-          const novosItens = pedido.itens.map(item => {
-            if (item.ids_pecas && item.ids_pecas.includes(id)) {
-              alterou = true;
-              return { ...item, ids_pecas: item.ids_pecas.filter(i => i !== id) };
-            }
-            return item;
-          });
-          if (alterou) {
+        // Buscar todos os pedidos que possuem esse ID em ids_pecas
+        const pedidosComId = pedidos.filter(p =>
+          p.itens && p.itens.some(item => (item.ids_pecas || []).map(i => i.toString().trim()).includes(id.toString().trim()))
+        );
+        // Adicionar o novo pedido na lista de comparação
+        const todosPedidos = [
+          ...pedidosComId,
+          {
+            id: 'novo',
+            data_retirada: dataRetirada,
+            data_pedido: dataPedidoAtual.toISOString(),
+            itens: itens.map(item => ({
+              ...item,
+              ids_pecas: item.idsValidados.map(i => i.toString().trim()),
+              ids_devolvidos: [],
+            })),
+            isNovo: true
+          }
+        ];
+        // Encontrar o pedido mais recente (maior data_retirada, depois maior data_pedido)
+        const pedidosOrdenados = todosPedidos.slice().sort((a, b) => {
+          const drA = new Date(a.data_retirada);
+          const drB = new Date(b.data_retirada);
+          if (drA > drB) return -1;
+          if (drA < drB) return 1;
+          // Se datas iguais, comparar data_pedido
+          const dpA = new Date(a.data_pedido);
+          const dpB = new Date(b.data_pedido);
+          if (dpA > dpB) return -1;
+          if (dpA < dpB) return 1;
+          return 0;
+        });
+        // O pedido mais recente
+        const pedidoMaisRecente = pedidosOrdenados[0];
+        // Todos os outros pedidos (menos o mais recente) devem ter o ID devolvido
+        for (let i = 0; i < pedidosOrdenados.length; i++) {
+          const pedido = pedidosOrdenados[i];
+          if (i === 0) continue; // Só o mais recente fica com o ID ativo
+          if (pedido.isNovo) {
+            // O novo pedido deve nascer com o ID devolvido
+            idsQueDevemNascerDevolvidos.add(id.toString().trim());
+          } else {
+            // Atualizar o pedido antigo: mover o ID para devolvidos
+            const novosItens = pedido.itens.map(item => {
+              const idsPecas = (item.ids_pecas || []).map(i => i.toString().trim());
+              const devolvidos = (item.ids_devolvidos || []).map(i => i.toString().trim());
+              if (idsPecas.includes(id.toString().trim())) {
+                return {
+                  ...item,
+                  ids_pecas: idsPecas.filter(i => i !== id.toString().trim()),
+                  ids_devolvidos: [...devolvidos, id.toString().trim()],
+                };
+              }
+              return item;
+            });
             batch.update(doc(db, 'pedidos', pedido.id), { itens: novosItens });
           }
         }
       }
-      // Salva o novo pedido
+      // Executar devoluções automáticas
+      if (!batch._mutations || batch._mutations.length === 0) {
+      } else {
+        await batch.commit();
+      }
+      // Agora, salva o novo pedido
       const pedido = {
-        data_pedido: new Date().toISOString(),
+        data_pedido: dataPedidoAtual.toISOString(),
         data_retirada: dataRetirada,
         encarregado,
         contrato,
         obra,
         dias_uso: diasUso,
-        itens: itens.map(item => ({
-          modelo: modelos.find(m => m.value === item.modelo)?.label || item.modelo,
-          quantidade: item.quantidade,
-          ids_pecas: item.idsValidados
-        }))
+        itens: itens.map(item => {
+          // Se algum ID deve nascer devolvido, já coloca em ids_devolvidos
+          const idsValidados = item.idsValidados.map(i => i.toString().trim());
+          const idsDevolvidos = idsValidados.filter(i => idsQueDevemNascerDevolvidos.has(i));
+          const idsAtivos = idsValidados.filter(i => !idsQueDevemNascerDevolvidos.has(i));
+          return {
+            modelo: modelos.find(m => m.value === item.modelo)?.label || item.modelo,
+            quantidade: item.quantidade,
+            ids_pecas: idsAtivos,
+            ids_devolvidos: idsDevolvidos,
+          };
+        })
       };
       await addDoc(collection(db, 'pedidos'), pedido);
       // Atualiza status das peças para "emprestado"
+      const batchStatus = writeBatch(db);
       itens.forEach(item => {
         item.idsValidados.forEach(id => {
           const pecaRef = doc(db, 'pecas', id);
-          batch.update(pecaRef, { status: 'emprestado' });
+          batchStatus.update(pecaRef, { status: 'emprestado' });
         });
       });
-      await batch.commit();
+      await batchStatus.commit();
       setSnackbar({ open: true, message: 'Pedido salvo com sucesso!', severity: 'success' });
       setEncarregado('');
       setContrato('');
@@ -191,19 +246,19 @@ function NovoPedido() {
       </Typography>
       <form onSubmit={handleSubmit} style={{ width: '100%' }}>
         <Grid container spacing={2} justifyContent="center">
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid sx={{ gridColumn: { xs: 'span 12', sm: 'span 6', md: 'span 4' } }}>
             <TextField label="Nome do Encarregado" value={encarregado} onChange={e => setEncarregado(e.target.value)} fullWidth required />
           </Grid>
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid sx={{ gridColumn: { xs: 'span 12', sm: 'span 6', md: 'span 4' } }}>
             <TextField label="Contrato" value={contrato} onChange={e => setContrato(e.target.value)} fullWidth required />
           </Grid>
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid sx={{ gridColumn: { xs: 'span 12', sm: 'span 6', md: 'span 4' } }}>
             <TextField label="Obra" value={obra} onChange={e => setObra(e.target.value)} fullWidth required />
           </Grid>
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid sx={{ gridColumn: { xs: 'span 12', sm: 'span 6', md: 'span 4' } }}>
             <TextField label="Dias de Uso" type="number" value={diasUso} onChange={e => setDiasUso(e.target.value)} fullWidth required />
           </Grid>
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid sx={{ gridColumn: { xs: 'span 12', sm: 'span 6', md: 'span 4' } }}>
             <TextField
               label="Data de Retirada"
               type="date"
@@ -220,7 +275,7 @@ function NovoPedido() {
           {itens.map((item, idx) => (
             <Paper key={idx} sx={{ p: 2, my: 2, width: '100%' }}>
               <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} sm={3}>
+                <Grid sx={{ gridColumn: { xs: 'span 12', sm: 'span 3' } }}>
                   <TextField
                     select
                     label="Modelo"
@@ -235,7 +290,7 @@ function NovoPedido() {
                     ))}
                   </TextField>
                 </Grid>
-                <Grid item xs={12} sm={2}>
+                <Grid sx={{ gridColumn: { xs: 'span 12', sm: 'span 2' } }}>
                   <TextField
                     label="Quantidade"
                     type="number"
@@ -246,7 +301,7 @@ function NovoPedido() {
                     inputProps={{ min: 1 }}
                   />
                 </Grid>
-                <Grid item xs={12} sm={5}>
+                <Grid sx={{ gridColumn: { xs: 'span 12', sm: 'span 5' } }}>
                   <TextField
                     label="IDs das Peças (separados por vírgula ou espaço)"
                     value={item.idsDigitados}
@@ -258,7 +313,7 @@ function NovoPedido() {
                     disabled={!item.modelo || !item.quantidade}
                   />
                 </Grid>
-                <Grid item xs={12} sm={2} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Grid sx={{ gridColumn: { xs: 'span 12', sm: 'span 2' }, display: 'flex', alignItems: 'center', gap: 1 }}>
                   <IconButton color="error" onClick={() => handleRemoveItem(idx)} disabled={itens.length === 1}>
                     <DeleteIcon />
                   </IconButton>
