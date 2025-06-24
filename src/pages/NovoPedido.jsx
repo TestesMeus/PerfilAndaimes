@@ -70,31 +70,29 @@ function NovoPedido() {
     setItens(novosItens);
   };
 
-  const handleIdsDigitadosChange = (idx, valor) => {
+  const handleIdChange = (itemIdx, idIdx, value) => {
     const novosItens = [...itens];
-    novosItens[idx].idsDigitados = valor;
-    const modeloNorm = novosItens[idx].modelo;
-    const quantidade = novosItens[idx].quantidade;
-    const ids = valor.split(/[,s]+/).filter(Boolean).map(id => id.toString());
-    let erro = '';
-    let idsValidos = [];
-    if (ids.length > 0) {
-      if (ids.length !== Number(quantidade)) {
-        erro = `Quantidade de IDs (${ids.length}) diferente da quantidade informada (${quantidade})`;
-      } else {
-        const pecasDoModelo = pecasPorModelo[modeloNorm] || [];
-        const idsDoModelo = new Set(pecasDoModelo.map(p => p.id.toString()));
-        for (const id of ids) {
-          if (!idsDoModelo.has(id)) {
-            erro = `ID ${id} não pertence ao modelo selecionado.`;
-            break;
-          }
-        }
-        if (!erro) idsValidos = ids;
-      }
+    let val = value.replace(/[^0-9]/g, '');
+    if (val.length > 4) val = val.slice(0, 4);
+    if (!novosItens[itemIdx].idsValidados) novosItens[itemIdx].idsValidados = [];
+    novosItens[itemIdx].idsValidados[idIdx] = val;
+    // Validação
+    const modeloNorm = novosItens[itemIdx].modelo;
+    const pecasDoModelo = pecasPorModelo[modeloNorm] || [];
+    const idsDoModelo = new Set(pecasDoModelo.map(p => p.id.toString()));
+    if (!novosItens[itemIdx].erroIds) novosItens[itemIdx].erroIds = [];
+    novosItens[itemIdx].erroIds[idIdx] = '';
+    if (val && !idsDoModelo.has(val)) {
+      novosItens[itemIdx].erroIds[idIdx] = 'ID não pertence ao modelo';
     }
-    novosItens[idx].idsValidados = idsValidos;
-    novosItens[idx].erroIds = erro;
+    // Checagem de duplicidade
+    const ids = novosItens[itemIdx].idsValidados.filter(Boolean);
+    const duplicados = ids.filter((id, i, arr) => arr.indexOf(id) !== i);
+    ids.forEach((id, i) => {
+      if (duplicados.includes(id)) {
+        novosItens[itemIdx].erroIds[i] = 'ID duplicado';
+      }
+    });
     setItens(novosItens);
   };
 
@@ -302,16 +300,28 @@ function NovoPedido() {
                   />
                 </Grid>
                 <Grid sx={{ gridColumn: { xs: 'span 12', sm: 'span 5' } }}>
-                  <TextField
-                    label="IDs das Peças (separados por vírgula ou espaço)"
-                    value={item.idsDigitados}
-                    onChange={e => handleIdsDigitadosChange(idx, e.target.value)}
-                    fullWidth
-                    required
-                    error={!!item.erroIds}
-                    helperText={item.erroIds || (item.idsValidados.length > 0 ? `IDs válidos: ${item.idsValidados.join(', ')}` : '')}
-                    disabled={!item.modelo || !item.quantidade}
-                  />
+                  <Box display="flex" flexWrap="wrap" gap={1}>
+                    {Array.from({ length: item.quantidade }).map((_, idIdx) => (
+                      <TextField
+                        key={idIdx}
+                        label={`ID #${idIdx + 1}`}
+                        value={item.idsValidados[idIdx] || ''}
+                        onChange={e => handleIdChange(idx, idIdx, e.target.value)}
+                        inputProps={{ maxLength: 4, inputMode: 'numeric', pattern: '[0-9]*' }}
+                        error={!!item.erroIds && !!item.erroIds[idIdx]}
+                        helperText={item.erroIds && item.erroIds[idIdx]}
+                        onInput={e => {
+                          if (e.target.value.length === 4) {
+                            const next = document.getElementById(`id-input-${idx}-${idIdx + 1}`);
+                            if (next) next.focus();
+                          }
+                        }}
+                        id={`id-input-${idx}-${idIdx}`}
+                        sx={{ width: 90 }}
+                        disabled={!item.modelo || !item.quantidade}
+                      />
+                    ))}
+                  </Box>
                 </Grid>
                 <Grid sx={{ gridColumn: { xs: 'span 12', sm: 'span 2' }, display: 'flex', alignItems: 'center', gap: 1 }}>
                   <IconButton color="error" onClick={() => handleRemoveItem(idx)} disabled={itens.length === 1}>
