@@ -115,7 +115,12 @@ function NovoPedido() {
     setSalvando(true);
     try {
       for (const item of itens) {
-        if (!item.modelo || !item.quantidade || item.idsValidados.length !== Number(item.quantidade) || item.erroIds) {
+        if (
+          !item.modelo ||
+          !item.quantidade ||
+          item.idsValidados.length !== Number(item.quantidade) ||
+          (Array.isArray(item.erroIds) && item.erroIds.some(Boolean))
+        ) {
           throw new Error('Preencha corretamente todos os campos e IDs dos itens do pedido.');
         }
       }
