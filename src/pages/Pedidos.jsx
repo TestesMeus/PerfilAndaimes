@@ -84,71 +84,74 @@ function Pedidos() {
         <Typography>Carregando...</Typography>
       ) : (
         <Grid container spacing={3} justifyContent="center">
-          {pedidos.map((pedido) => {
-            const status = calcularStatus(pedido);
-            const dias = diasRestantes(pedido);
-            return (
-              <Grid sx={{ gridColumn: { xs: 'span 12', sm: 'span 6', md: 'span 4', lg: 'span 3' }, display: 'flex', justifyContent: 'center' }} key={pedido.id}>
-                <Card
-                  className="glass-neon"
-                  sx={{
-                    borderLeft: 6,
-                    borderColor: status === 'ok' ? theme.palette.success.main : theme.palette.error.main,
-                    background: 'rgba(40,43,69,0.6)',
-                    color: '#fff',
-                    boxShadow: 8,
-                    borderRadius: 4,
-                    p: 2,
-                    minHeight: 200,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    transition: 'box-shadow 0.3s, border 0.3s, background 0.3s',
-                    '&:hover': {
-                      boxShadow: 16,
-                      background: 'rgba(40,43,69,0.8)',
-                    },
-                  }}
-                >
-                  <CardActionArea onClick={() => setPedidoSelecionado(pedido)} sx={{ borderRadius: 4 }}>
-                    <CardContent sx={{ width: '100%', textAlign: 'center' }}>
-                      <Typography variant="h6" gutterBottom>
-                        {pedido.obra || 'Obra não informada'}
-                      </Typography>
-                      <Typography variant="body2">
-                        Encarregado: <b>{pedido.encarregado}</b>
-                      </Typography>
-                      <Typography variant="body2">
-                        Contrato: <b>{pedido.contrato}</b>
-                      </Typography>
-                      <Typography variant="body2">
-                        Data Retirada: <b>{formatarData(pedido.data_retirada)}</b>
-                      </Typography>
-                      <Typography variant="body2">
-                        {dias !== null && dias >= 0
-                          ? `Faltam: `
-                          : `Atrasado: `}
-                        <b>
-                          {dias !== null
-                            ? dias >= 0
-                              ? `${dias} dia${dias === 1 ? '' : 's'}`
-                              : `${Math.abs(dias)} dia${Math.abs(dias) === 1 ? '' : 's'}`
-                            : '--'}
-                        </b>
-                      </Typography>
-                      <Box mt={1}>
-                        <Chip
-                          label={status === 'ok' ? 'Dentro do prazo' : 'Atrasado'}
-                          color={status === 'ok' ? 'success' : 'error'}
-                          sx={{ fontWeight: 'bold' }}
-                        />
-                      </Box>
-                    </CardContent>
-                  </CardActionArea>
-                </Card>
-              </Grid>
-            );
-          })}
+          {pedidos
+            .slice()
+            .sort((a, b) => new Date(b.data_retirada) - new Date(a.data_retirada))
+            .map((pedido) => {
+              const status = calcularStatus(pedido);
+              const dias = diasRestantes(pedido);
+              return (
+                <Grid sx={{ gridColumn: { xs: 'span 12', sm: 'span 6', md: 'span 4', lg: 'span 3' }, display: 'flex', justifyContent: 'center' }} key={pedido.id}>
+                  <Card
+                    className="glass-neon"
+                    sx={{
+                      borderLeft: 6,
+                      borderColor: status === 'ok' ? theme.palette.success.main : theme.palette.error.main,
+                      background: 'rgba(40,43,69,0.6)',
+                      color: '#fff',
+                      boxShadow: 8,
+                      borderRadius: 4,
+                      p: 2,
+                      minHeight: 200,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      transition: 'box-shadow 0.3s, border 0.3s, background 0.3s',
+                      '&:hover': {
+                        boxShadow: 16,
+                        background: 'rgba(40,43,69,0.8)',
+                      },
+                    }}
+                  >
+                    <CardActionArea onClick={() => setPedidoSelecionado(pedido)} sx={{ borderRadius: 4 }}>
+                      <CardContent sx={{ width: '100%', textAlign: 'center' }}>
+                        <Typography variant="h6" gutterBottom>
+                          {pedido.obra || 'Obra não informada'}
+                        </Typography>
+                        <Typography variant="body2">
+                          Encarregado: <b>{pedido.encarregado}</b>
+                        </Typography>
+                        <Typography variant="body2">
+                          Contrato: <b>{pedido.contrato}</b>
+                        </Typography>
+                        <Typography variant="body2">
+                          Data Retirada: <b>{formatarData(pedido.data_retirada)}</b>
+                        </Typography>
+                        <Typography variant="body2">
+                          {dias !== null && dias >= 0
+                            ? `Faltam: `
+                            : `Atrasado: `}
+                          <b>
+                            {dias !== null
+                              ? dias >= 0
+                                ? `${dias} dia${dias === 1 ? '' : 's'}`
+                                : `${Math.abs(dias)} dia${Math.abs(dias) === 1 ? '' : 's'}`
+                              : '--'}
+                          </b>
+                        </Typography>
+                        <Box mt={1}>
+                          <Chip
+                            label={status === 'ok' ? 'Dentro do prazo' : 'Atrasado'}
+                            color={status === 'ok' ? 'success' : 'error'}
+                            sx={{ fontWeight: 'bold' }}
+                          />
+                        </Box>
+                      </CardContent>
+                    </CardActionArea>
+                  </Card>
+                </Grid>
+              );
+            })}
         </Grid>
       )}
 

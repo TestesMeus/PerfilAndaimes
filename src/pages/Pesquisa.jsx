@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Typography, Box, Grid, Card, CardContent, CardActionArea, TextField, Button, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import { Typography, Box, Grid, Card, CardContent, CardActionArea, TextField, Button, Dialog, DialogTitle, DialogContent, DialogActions, Chip } from '@mui/material';
 import { db } from '../config/firebase';
 import { collection, onSnapshot } from 'firebase/firestore';
 
@@ -107,28 +107,38 @@ function Pesquisa() {
         <Typography>Carregando...</Typography>
       ) : (
         <Grid container spacing={3} justifyContent="center">
-          {resultados.map((pedido) => (
-            <Grid sx={{ gridColumn: { xs: 'span 12', sm: 'span 6', md: 'span 4', lg: 'span 3' }, display: 'flex', justifyContent: 'center' }} key={pedido.id}>
-              <Card className="glass-neon" sx={{ borderRadius: 4, p: 2, minHeight: 180, display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: 8, transition: 'box-shadow 0.3s, background 0.3s', background: 'rgba(40,43,69,0.6)', color: '#fff', '&:hover': { boxShadow: 16, background: 'rgba(40,43,69,0.8)' } }}>
-                <CardActionArea onClick={() => setPedidoSelecionado(pedido)} sx={{ borderRadius: 4 }}>
-                  <CardContent sx={{ width: '100%', textAlign: 'center' }}>
-                    <Typography variant="h6" gutterBottom>
-                      {pedido.obra || 'Obra não informada'}
-                    </Typography>
-                    <Typography variant="body2">
-                      Encarregado: <b>{pedido.encarregado}</b>
-                    </Typography>
-                    <Typography variant="body2">
-                      Contrato: <b>{pedido.contrato}</b>
-                    </Typography>
-                    <Typography variant="body2">
-                      Data Retirada: <b>{formatarData(pedido.data_retirada)}</b>
-                    </Typography>
-                  </CardContent>
-                </CardActionArea>
-              </Card>
-            </Grid>
-          ))}
+          {resultados.map((pedido) => {
+            // Verifica se o pedido está ativo ou entregue
+            const ativo = pedido.itens && pedido.itens.some(item => item.ids_pecas && item.ids_pecas.length > 0);
+            return (
+              <Grid sx={{ gridColumn: { xs: 'span 12', sm: 'span 6', md: 'span 4', lg: 'span 3' }, display: 'flex', justifyContent: 'center' }} key={pedido.id}>
+                <Card className="glass-neon" sx={{ borderRadius: 4, p: 2, minHeight: 180, display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: 8, transition: 'box-shadow 0.3s, background 0.3s', background: 'rgba(40,43,69,0.6)', color: '#fff', '&:hover': { boxShadow: 16, background: 'rgba(40,43,69,0.8)' } }}>
+                  <CardActionArea onClick={() => setPedidoSelecionado(pedido)} sx={{ borderRadius: 4 }}>
+                    <CardContent sx={{ width: '100%', textAlign: 'center' }}>
+                      <Typography variant="h6" gutterBottom>
+                        {pedido.obra || 'Obra não informada'}
+                      </Typography>
+                      <Chip
+                        label={ativo ? 'Ativo' : 'Entregue'}
+                        color={ativo ? 'warning' : 'success'}
+                        size="small"
+                        sx={{ mb: 1 }}
+                      />
+                      <Typography variant="body2">
+                        Encarregado: <b>{pedido.encarregado}</b>
+                      </Typography>
+                      <Typography variant="body2">
+                        Contrato: <b>{pedido.contrato}</b>
+                      </Typography>
+                      <Typography variant="body2">
+                        Data Retirada: <b>{formatarData(pedido.data_retirada)}</b>
+                      </Typography>
+                    </CardContent>
+                  </CardActionArea>
+                </Card>
+              </Grid>
+            );
+          })}
           {resultados.length === 0 && (
             <Grid sx={{ gridColumn: 'span 12' }}>
               <Typography>Nenhum pedido encontrado.</Typography>
