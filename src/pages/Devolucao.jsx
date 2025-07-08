@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Typography, Box, Grid, Card, CardContent, CardActionArea, Dialog, DialogTitle, DialogContent, DialogActions, Button, Checkbox, FormControlLabel, TextField, Alert } from '@mui/material';
 import { db } from '../config/firebase';
-import { collection, onSnapshot, doc, updateDoc, query, where, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, doc, updateDoc, query, where, orderBy, getDocs } from 'firebase/firestore';
 
 function formatarData(data) {
   if (!data) return '';
@@ -120,6 +120,42 @@ function Devolucao() {
 
   return (
     <Box>
+      {/* DEVOLUÇÃO POR UNIDADE */}
+      <Box mt={2} mb={5} p={3} sx={{ background: 'rgba(40,43,69,0.10)', borderRadius: 4, boxShadow: 2, maxWidth: 500, mx: 'auto' }}>
+        <Typography variant="h6" gutterBottom>Devolução por ID da Peça</Typography>
+        <Typography variant="body2" color="text.secondary" mb={2}>
+          Digite o ID da peça para consultar a qual pedido ela está vinculada e realizar a devolução.
+        </Typography>
+        {msgUnidade && (
+          <Alert severity={msgUnidade.includes('sucesso') ? 'success' : 'warning'} sx={{ mb: 2 }}>{msgUnidade}</Alert>
+        )}
+        <Box display="flex" alignItems="center" gap={2} mb={2}>
+          <TextField
+            label="ID da Peça"
+            value={idUnidade}
+            onChange={e => setIdUnidade(e.target.value.replace(/[^0-9]/g, ''))}
+            size="small"
+            sx={{ width: 180 }}
+            disabled={salvandoUnidade}
+            onKeyDown={e => { if (e.key === 'Enter') handleBuscarUnidade(); }}
+          />
+          <Button variant="outlined" onClick={handleBuscarUnidade} disabled={!idUnidade || salvandoUnidade}>
+            Buscar
+          </Button>
+        </Box>
+        {infoUnidade && (
+          <Box mt={2} p={2} border={1} borderColor="#eee" borderRadius={2}>
+            <Typography><b>Pedido:</b> {infoUnidade.pedido.id}</Typography>
+            <Typography><b>Obra:</b> {infoUnidade.pedido.obra}</Typography>
+            <Typography><b>Encarregado:</b> {infoUnidade.pedido.encarregado}</Typography>
+            <Typography><b>Modelo:</b> {infoUnidade.item.modelo}</Typography>
+            <Typography><b>Data Retirada:</b> {formatarData(infoUnidade.pedido.data_retirada)}</Typography>
+            <Button variant="contained" color="primary" sx={{ mt: 2 }} onClick={handleDevolverUnidade} disabled={salvandoUnidade}>
+              {salvandoUnidade ? 'Salvando...' : 'Confirmar Devolução'}
+            </Button>
+          </Box>
+        )}
+      </Box>
       <Typography variant="h4" gutterBottom>
         Devolução de Andaimes
       </Typography>
@@ -131,20 +167,23 @@ function Devolucao() {
           <Typography>Carregando pedidos...</Typography>
         ) : (
           <Grid container spacing={2} justifyContent="center">
-            {pedidos.map(pedido => (
-              <Grid sx={{ gridColumn: { xs: 'span 12', sm: 'span 6', md: 'span 4' }, display: 'flex', justifyContent: 'center' }} key={pedido.id}>
-                <Card className="glass-neon" sx={{ borderRadius: 4, p: 2, minHeight: 140, display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: 8, transition: 'box-shadow 0.3s, background 0.3s', background: 'rgba(40,43,69,0.6)', color: '#fff', '&:hover': { boxShadow: 16, background: 'rgba(40,43,69,0.8)' } }}>
-                  <CardActionArea onClick={() => { setPedidoSelecionado(pedido); setIdsDevolver([]); }} sx={{ borderRadius: 4 }}>
-                    <CardContent sx={{ width: '100%', textAlign: 'center' }}>
-                      <Typography variant="h6">{pedido.obra}</Typography>
-                      <Typography variant="body2">Encarregado: {pedido.encarregado}</Typography>
-                      <Typography variant="body2">Contrato: {pedido.contrato}</Typography>
-                      <Typography variant="body2">Data Retirada: {formatarData(pedido.data_retirada)}</Typography>
-                    </CardContent>
-                  </CardActionArea>
-                </Card>
-              </Grid>
-            ))}
+            {pedidos
+              .slice()
+              .sort((a, b) => new Date(b.data_retirada) - new Date(a.data_retirada))
+              .map(pedido => (
+                <Grid sx={{ gridColumn: { xs: 'span 12', sm: 'span 6', md: 'span 4' }, display: 'flex', justifyContent: 'center' }} key={pedido.id}>
+                  <Card className="glass-neon" sx={{ borderRadius: 4, p: 2, minHeight: 140, display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: 8, transition: 'box-shadow 0.3s, background 0.3s', background: 'rgba(40,43,69,0.6)', color: '#fff', '&:hover': { boxShadow: 16, background: 'rgba(40,43,69,0.8)' } }}>
+                    <CardActionArea onClick={() => { setPedidoSelecionado(pedido); setIdsDevolver([]); }} sx={{ borderRadius: 4 }}>
+                      <CardContent sx={{ width: '100%', textAlign: 'center' }}>
+                        <Typography variant="h6">{pedido.obra}</Typography>
+                        <Typography variant="body2">Encarregado: {pedido.encarregado}</Typography>
+                        <Typography variant="body2">Contrato: {pedido.contrato}</Typography>
+                        <Typography variant="body2">Data Retirada: {formatarData(pedido.data_retirada)}</Typography>
+                      </CardContent>
+                    </CardActionArea>
+                  </Card>
+                </Grid>
+              ))}
           </Grid>
         )}
       </Box>
@@ -176,36 +215,6 @@ function Devolucao() {
           </Button>
         </DialogActions>
       </Dialog>
-      {/* DEVOLUÇÃO POR UNIDADE */}
-      <Box mt={6}>
-        <Typography variant="h6" gutterBottom>Devolução por Unidade (ID)</Typography>
-        {msgUnidade && <Alert severity={msgUnidade.includes('sucesso') ? 'success' : 'warning'} sx={{ mb: 2 }}>{msgUnidade}</Alert>}
-        <Box display="flex" alignItems="center" gap={2}>
-          <TextField
-            label="ID da Peça"
-            value={idUnidade}
-            onChange={e => setIdUnidade(e.target.value.replace(/[^0-9]/g, ''))}
-            size="small"
-            sx={{ width: 180 }}
-            disabled={salvandoUnidade}
-          />
-          <Button variant="outlined" onClick={handleBuscarUnidade} disabled={!idUnidade || salvandoUnidade}>
-            Buscar
-          </Button>
-        </Box>
-        {infoUnidade && (
-          <Box mt={2} p={2} border={1} borderColor="#eee" borderRadius={2}>
-            <Typography><b>Pedido:</b> {infoUnidade.pedido.id}</Typography>
-            <Typography><b>Obra:</b> {infoUnidade.pedido.obra}</Typography>
-            <Typography><b>Encarregado:</b> {infoUnidade.pedido.encarregado}</Typography>
-            <Typography><b>Modelo:</b> {infoUnidade.item.modelo}</Typography>
-            <Typography><b>Data Retirada:</b> {formatarData(infoUnidade.pedido.data_retirada)}</Typography>
-            <Button variant="contained" color="primary" sx={{ mt: 2 }} onClick={handleDevolverUnidade} disabled={salvandoUnidade}>
-              {salvandoUnidade ? 'Salvando...' : 'Confirmar Devolução'}
-            </Button>
-          </Box>
-        )}
-      </Box>
     </Box>
   );
 }
